@@ -22,8 +22,8 @@
 
 ## Screenshits (2nd gen SE on 15.3.1 with MilkyWay4):
 
-  ![The Finder window](./images/ING_2888.PNG)
-  ![The Mac Switcher](./images/ING_2889.PNG)
+  ![The Finder window](./images/IMG_2888.PNG)
+  ![The Mac Switcher](./images/IMG_2889.PNG)
 
 ### Bellow is the original description of this tweak.
 
