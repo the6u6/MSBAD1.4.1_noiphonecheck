@@ -20,9 +20,10 @@
 * The macOS-looking status bar itself.
 * macOS-like desktop icons.
 
-## Screenshits (2nd gen SE on 15.3.1):
+## Screenshits (2nd gen SE on 15.3.1 with MilkyWay4):
 
-not added yet
+  ![The Finder window](./images/ING_2888.PNG)
+  ![The Mac Switcher](./images/ING_2889.PNG)
 
 ### Bellow is the original description of this tweak.
 
