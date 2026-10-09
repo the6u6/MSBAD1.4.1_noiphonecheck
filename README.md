@@ -13,12 +13,12 @@
 * Almost everything in the "Status Bar" section.
 * The built-in Finder recreation.
 * The Launchpad-looking button.
+* macOS-like desktop icons.
 * (not everything has been tested yet).
 
 ## What doesn't work:
 
 * The macOS-looking status bar itself.
-* macOS-like desktop icons.
 
 ## Screenshits (2nd gen SE on 15.3.1 with MilkyWay4):
 
