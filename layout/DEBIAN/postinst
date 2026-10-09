@@ -4,18 +4,6 @@
 L=/var/jb/usr/bin/launchctl
 H=/var/jb/usr/libexec/sshtoggled
 if [ "$1" = "configure" ]; then
-    # iPad only: on an iPhone (even one made to look like an iPad) nothing is changed and the helper is not started. The helper answers 0 on an
-    # iPad and 2 on anything else; any other answer means it could not run (a crash, a failed start): that is no reason to skip the setup, so it
-    # is said and the normal path goes on.
-    if [ -x "$H" ]; then
-        "$H" --is-ipad; rc=$?
-        if [ "$rc" = 2 ]; then
-            echo "MacStatusBar&Dock is made for iPad. It does nothing on this device; you can remove it."
-            exit 0
-        elif [ "$rc" != 0 ]; then
-            echo "MacStatusBar&Dock: the iPad check could not run (code $rc); setting up as on an iPad." >&2
-        fi
-    fi
     # the old packages' helper, if its package did not stop it (it is the same program under its old name)
     OLD=/var/jb/Library/LaunchDaemons/com.kaan.sshtoggled.plist
     [ -f "$OLD" ] && $L unload "$OLD" 2>/dev/null
