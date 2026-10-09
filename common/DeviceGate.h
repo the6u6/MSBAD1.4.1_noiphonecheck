@@ -33,6 +33,16 @@ static inline uint64_t MSBDFakeModelState(void) {
 #endif
 
 // 1 on an iPad. A failed lookup counts as no iPad (it cannot fail on a real device).
+//
+// LOCAL BUILD PATCH (not upstream): the iPad-only gate is turned off, so the tweak loads on any
+// device instead of disabling itself. MSBDIsIPad() is the single decision point for the gate:
+// loader/Loader.c zeroes its "kind" on a false result, and macsettings/sshtoggled/main.m answers
+// postinst's "--is-ipad" probe from it, so overriding the function here covers every call site.
+// To restore the original iPad-only behaviour, delete the #define and the #ifdef/#else/#endif below.
+#define MSBD_ALLOW_ANY_DEVICE 1
+#ifdef MSBD_ALLOW_ANY_DEVICE
+static inline int MSBDIsIPad(void) { return 1; }
+#else
 static inline int MSBDIsIPad(void) {
     static int ipad = -1;
     if (ipad >= 0) return ipad;
@@ -50,3 +60,4 @@ static inline int MSBDIsIPad(void) {
     if (sysctlbyname("hw.machine", m, &n, NULL, 0) != 0) return ipad = 0;
     return ipad = strncmp(m, "iPad", 4) == 0;   // ("iPhone...", "iPod...": no)
 }
+#endif   // MSBD_ALLOW_ANY_DEVICE
