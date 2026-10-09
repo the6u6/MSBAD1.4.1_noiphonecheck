@@ -1,3 +1,31 @@
+# About this fork:
+
+* This is a fork that removes (or at least tries to) the checks that prevent the tweak from working on iPhones (and iPod Touch 7s).
+* This was vibecoded (just like the original tweak).
+* I don't really recommend using this unless you're a masochist (like me). Wait for the original developer to implement iPhone support properly.
+* I do not plan on updating this shitty fork. Like ever.
+* Notchless devices (iPhone 6S to SE 3rd gen, iPod Touch 7) will also require a separate tweak that can enable the modern dock (Lynx for example).
+* I don't know how to exit full-screen apps when the "Mac Switcher" option is turned on. I suggest you disable that.
+
+## What works:
+
+* Everything(?) dock-related.
+* Almost everything in the "Status Bar" section.
+* The built-in Finder recreation.
+* The Launchpad-looking button.
+* (not everything has been tested yet).
+
+## What doesn't work:
+
+* The macOS-looking status bar itself.
+* macOS-like desktop icons.
+
+## Screenshits (2nd gen SE on 15.3.1):
+
+not added yet
+
+### Bellow is the original description of this tweak.
+
 # MacStatusBar&Dock
 
 A macOS-style desktop for jailbroken iPads: a menu bar with real app menus, Mac-looking windows, a magnifying Dock, Mac-style notification banners, a Mac pointer and a lot of small Mac touches. Built for **rootless jailbreaks on iPadOS 15 and 16**. It works with just your fingers or with a keyboard and trackpad or mouse, in every orientation.
