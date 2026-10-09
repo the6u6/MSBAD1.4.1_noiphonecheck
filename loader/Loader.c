@@ -7,7 +7,7 @@
 // Cost in a process where no part applies: one executable-path read and a few string compares (no Objective-C, no allocation) -- microseconds.
 // On an iPadOS version other than 15/16 only the Settings rows load, unless "Enable Anyway" is on (common/VersionGate.h); on 15/16 the same after
 // the crash guard switched its safe mode on. Whenever the parts are meant to run, SpringBoard's loader runs the crash guard first
-// (common/CrashGuard.h). On anything that is not an iPad nothing loads at all (common/DeviceGate.h).
+// (common/CrashGuard.h).
 #include <dlfcn.h>
 #include <string.h>
 #include <stdint.h>
@@ -15,7 +15,6 @@
 #include <notify.h>
 #include "../common/VersionGate.h"
 #include "../common/CrashGuard.h"
-#include "../common/DeviceGate.h"
 #if DEBUG
 #include <stdio.h>
 #include <unistd.h>
@@ -115,8 +114,6 @@ __attribute__((constructor)) static void MSBDLoad(void) {
     void *uikit = dlopen("/System/Library/Frameworks/UIKit.framework/UIKit", RTLD_LAZY | RTLD_NOLOAD);
     if (uikit) { kind |= kUIKit; dlclose(uikit); }
     if (kind == kUIKit && MSBDRecoveryApp(path)) kind = 0;   // (nothing of ours in the recovery apps)
-    int noIPad = kind && !MSBDIsIPad();   // (an iPhone made to look like an iPad: nothing at all, not even the rows)
-    if (noIPad) kind = 0;
 #if DEBUG
     if (kind & kSpringBoard) MSBDGatePublish(MSBD_GATE_FAKE_STATE, (uint64_t)MSBDFakeMajorFile());   // (before the version is read)
 #endif
@@ -151,9 +148,9 @@ __attribute__((constructor)) static void MSBDLoad(void) {
         mach_timebase_info_data_t tb; mach_timebase_info(&tb);
         double us = (double)(mach_absolute_time() - t0) * tb.numer / tb.denom / 1000.0;
         FILE *f = fopen("/tmp/msbd-loader.log", "a");
-        if (f) { fprintf(f, "%s: kind %u, iPadOS %d%s%s, %u parts loaded, %.1f us\n", getprogname(), kind, MSBDOSMajor(), rowsOnly ? (MSBDVersionTested() ? " (crash guard safe mode: rows only)" : " (untested: rows only)") : "", noIPad ? " (no iPad: nothing)" : "", loaded, us); fclose(f); }
+        if (f) { fprintf(f, "%s: kind %u, iPadOS %d%s, %u parts loaded, %.1f us\n", getprogname(), kind, MSBDOSMajor(), rowsOnly ? (MSBDVersionTested() ? " (crash guard safe mode: rows only)" : " (untested: rows only)") : "", loaded, us); fclose(f); }
     }
 #else
-    (void)loaded; (void)noIPad;
+    (void)loaded;
 #endif
 }
