@@ -1,8 +1,8 @@
 name: Build MacStatusBar&Dock
 
-# `on:` must stay unquoted: PyYAML and other YAML 1.1 parsers turn a bare `on` key into the
-# boolean True. GitHub's own parser handles it, but quoting keeps third-party tooling sane.
 "on":
+  # `on:` must stay quoted: PyYAML and other YAML 1.1 parsers turn a bare `on` key into the
+  # boolean True. GitHub's own parser handles it, but quoting keeps third-party tooling sane.
   workflow_dispatch:
   push:
     branches: [ main ]
@@ -24,42 +24,65 @@ jobs:
             || { echo "::error::common/DeviceGate.h is not patched - MSBD_ALLOW_ANY_DEVICE is missing"; exit 1; }
           grep -n 'MSBD_ALLOW_ANY_DEVICE\|MSBDIsIPad' common/DeviceGate.h
 
+      - name: Install GNU Make 4.x
+        run: |
+          # macOS ships make 3.81 as `make`, and Theos's bundle step hangs on it under -jN.
+          # The runner images do not guarantee `gmake`, so take it from Homebrew.
+          if brew list --versions make >/dev/null 2>&1; then
+            echo "using Homebrew make $(brew list --versions make | cut -d' ' -f2)"
+          else
+            brew install make
+          fi
+          gmake --version | head -1
+
+      # Installed under $RUNNER_TEMP, NOT /opt: /opt is root-owned on the runner image and a
+      # plain `git clone` into it fails with "could not create work tree dir ... Permission
+      # denied" (the earlier `sudo rm -rf` succeeding makes this look like a clone problem
+      # rather than a permissions one).
       - name: Install Theos
         run: |
-          sudo rm -rf /opt/theos
-          git clone --depth 1 --recursive https://github.com/theos/theos /opt/theos
-          sudo chown -R "$USER" /opt/theos
-          echo "THEOS=/opt/theos"                       >> "$GITHUB_ENV"
-          echo "THEOS_NO_PYTHON_VERSION_CHECK=1"        >> "$GITHUB_ENV"
-          echo "PATH=/opt/theos/bin:$PATH"              >> "$GITHUB_ENV"
+          THEOS_DIR="$RUNNER_TEMP/theos"
+          rm -rf "$THEOS_DIR"
+          git clone --depth 1 --recursive https://github.com/theos/theos "$THEOS_DIR"
+          echo "THEOS=$THEOS_DIR"                >> "$GITHUB_ENV"
+          echo "THEOS_NO_PYTHON_VERSION_CHECK=1" >> "$GITHUB_ENV"
+          echo "PATH=$THEOS_DIR/bin:$PATH"       >> "$GITHUB_ENV"
 
       # Only the one SDK this project targets (iphone:clang:16.5), fetched sparsely so the
       # ~2 GB theos/sdks repo is not downloaded in full.
       - name: Fetch the iPhoneOS 16.5 SDK
         run: |
-          git clone --filter=blob:none --no-checkout https://github.com/theos/sdks /opt/theos/sdks
-          cd /opt/theos/sdks
-          git sparse-checkout init --cone
-          git sparse-checkout set iPhoneOS16.5.sdk
-          git checkout
-          ls -d /opt/theos/sdks/iPhoneOS16.5.sdk
+          git clone --filter=blob:none --sparse https://github.com/theos/sdks "$THEOS/sdks"
+          git -C "$THEOS/sdks" sparse-checkout set iPhoneOS16.5.sdk
+          ls -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+
+      - name: Report the toolchain
+        run: |
+          echo "THEOS  : $THEOS"
+          echo "make   : $(gmake --version | head -1)"
+          echo "clang  : $(clang --version | head -1)"
+          echo "otool  : $(command -v otool)"
+          echo "nm     : $(command -v nm)"
+          echo "dwarfdump: $(xcrun -f dwarfdump)"
+          df -h "$RUNNER_TEMP" | tail -1
 
       # Debug package on purpose: tools/make-crashmap.py needs the unstripped .dSYM bundles that
       # FINALPACKAGE=1 strips away (it errors with "no matching symbols for ..." otherwise).
       - name: Build
-        run: |
-          df -h "$RUNNER_TEMP" | tail -1
-          gmake -j4 package V=1
-        continue-on-error: true
+        id: build
+        run: gmake -j4 package V=1
 
       # tools/make-crashmap.py stops the build when a crashmap rule matches no function, which
       # can happen if a different clang renames a section header or function. That is a
       # packaging-precision failure, not a compile failure, so retry leniently before giving up.
+      # Scoped to this step's own outcome: a failed Theos/SDK install must not be retried here,
+      # or the real error gets buried under a confusing second failure.
       - name: Retry leniently if the crashmap step rejected the build
-        if: failure()
+        if: steps.build.outcome == 'failure'
         run: |
-          echo "First attempt failed. Retrying with CRASHMAP_LENIENT=1."
-          echo "(CrashMap.txt will fall back to whole-part granularity.)"
+          echo "::warning::The build failed. Retrying with CRASHMAP_LENIENT=1."
+          echo "(CrashMap.txt falls back to whole-part granularity: the crash guard still"
+          echo "switches the right feature off, but blames a whole part, not one function.)"
           CRASHMAP_LENIENT=1 gmake -j4 package V=1
 
       - name: Locate the package
