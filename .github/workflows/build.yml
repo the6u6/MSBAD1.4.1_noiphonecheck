@@ -24,7 +24,7 @@ jobs:
             || { echo "::error::common/DeviceGate.h is not patched - MSBD_ALLOW_ANY_DEVICE is missing"; exit 1; }
           grep -n 'MSBD_ALLOW_ANY_DEVICE\|MSBDIsIPad' common/DeviceGate.h
 
-      - name: Install GNU Make 4.x
+      - name: Install build tools (GNU Make 4.x, ldid)
         run: |
           # macOS ships make 3.81 as `make`, and Theos's bundle step hangs on it under -jN.
           # The runner images do not guarantee `gmake`, so take it from Homebrew.
@@ -34,6 +34,18 @@ jobs:
             brew install make
           fi
           gmake --version | head -1
+
+          # Theos does NOT ship ldid: upstream theos/bin/ contains no ldid (it is a 404), because
+          # Theos assumes it is already on PATH -- true on a developer Mac that installed it
+          # separately, false on a bare CI runner. Without it every dylib fails at the "Signing"
+          # step with "ldid: command not found" and Error 127. Homebrew has a native arm64 bottle.
+          if command -v ldid >/dev/null 2>&1; then
+            echo "ldid already present: $(ldid 2>&1 | head -1)"
+          else
+            brew install ldid
+          fi
+          command -v ldid
+          ldid 2>&1 | head -2 || true
 
       # Installed under $RUNNER_TEMP, NOT /opt: /opt is root-owned on the runner image and a
       # plain `git clone` into it fails with "could not create work tree dir ... Permission
@@ -72,15 +84,24 @@ jobs:
           ls -d "$SDK_DIR/iPhoneOS16.5.sdk"
           du -sh "$SDK_DIR"
 
+      # Check every external tool Theos shells out to, and fail here with a clear message
+      # instead of part-way through the build with "command not found" and a confusing exit
+      # code. ldid and gmake were both missing on a bare runner and cost a build each.
       - name: Report the toolchain
         run: |
-          echo "THEOS  : $THEOS"
-          echo "make   : $(gmake --version | head -1)"
-          echo "clang  : $(clang --version | head -1)"
-          echo "otool  : $(command -v otool)"
-          echo "nm     : $(command -v nm)"
+          echo "THEOS    : $THEOS"
+          echo "make     : $(gmake --version | head -1)"
+          echo "clang    : $(clang --version | head -1)"
+          echo "ldid     : $(command -v ldid)"
+          echo "otool    : $(command -v otool)"
+          echo "nm       : $(command -v nm)"
           echo "dwarfdump: $(xcrun -f dwarfdump)"
           df -h "$RUNNER_TEMP" | tail -1
+          for t in gmake clang ldid otool nm python3 git; do
+            command -v "$t" >/dev/null 2>&1 || { echo "::error::$t is missing from PATH"; exit 1; }
+          done
+          xcrun -f dwarfdump >/dev/null 2>&1 || { echo "::error::dwarfdump is missing (needed by tools/make-crashmap.py)"; exit 1; }
+          echo "all required tools present"
 
       # Debug package on purpose: tools/make-crashmap.py needs the unstripped .dSYM bundles that
       # FINALPACKAGE=1 strips away (it errors with "no matching symbols for ..." otherwise).
