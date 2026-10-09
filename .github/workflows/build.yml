@@ -7,6 +7,9 @@ name: Build MacStatusBar&Dock
   push:
     branches: [ main ]
 
+permissions:
+  contents: write   # required to create the GitHub Release below
+
 jobs:
   build:
     # macOS runners ship Apple's dwarfdump / nm / otool, which tools/make-crashmap.py needs.
@@ -16,13 +19,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Fail fast and loudly if the device-gate patch is not actually in the tree, rather than
-      # silently producing an iPad-only package.
-      - name: Verify the device gate is patched out
+      # The iPad-only gate is deleted outright in this fork, so its absence is the check: if
+      # MSBDIsIPad or common/DeviceGate.h ever reappear, the build would silently become
+      # iPad-only again, which is the exact failure this workflow exists to prevent.
+      - name: Verify the device gate is gone
         run: |
-          grep -q '#define MSBD_ALLOW_ANY_DEVICE 1' common/DeviceGate.h \
-            || { echo "::error::common/DeviceGate.h is not patched - MSBD_ALLOW_ANY_DEVICE is missing"; exit 1; }
-          grep -n 'MSBD_ALLOW_ANY_DEVICE\|MSBDIsIPad' common/DeviceGate.h
+          if [ -e common/DeviceGate.h ]; then
+            echo "::error::common/DeviceGate.h exists - this fork deletes the device gate"
+            exit 1
+          fi
+          if grep -rn 'MSBDIsIPad\|noIPad\|--is-ipad' loader macsettings layout tools 2>/dev/null; then
+            echo "::error::a device-gate call site is back in the tree"
+            exit 1
+          fi
+          echo "device gate absent (DeviceGate.h deleted, no call sites)"
 
       - name: Install build tools (GNU Make 4.x, ldid)
         run: |
@@ -123,10 +133,66 @@ jobs:
           CRASHMAP_LENIENT=1 gmake -j4 package V=1
 
       - name: Locate the package
-        run: find packages -name '*.deb' -exec ls -la {} \;
+        id: pkg
+        run: |
+          find packages -name '*.deb' -exec ls -la {} \;
+          deb=$(find packages -name '*.deb' | head -1)
+          [ -n "$deb" ] || { echo "::error::no .deb in packages/"; exit 1; }
+          version=$(sed -n 's/^Version: //p' control | tr -d '[:space:]')
+          echo "deb=$deb"         >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "building version  : $version"
 
       - uses: actions/upload-artifact@v4
         with:
           name: MacStatusBarAndDock
           path: packages/*.deb
           if-no-files-found: error
+
+      # Publish a GitHub Release so the .deb is downloadable straight from the Releases tab,
+      # which is where package managers and users expect to find it (the artifact from the step
+      # above expires after 90 days; a release does not).
+      #
+      # The tag is the version from control plus a run number, NOT the bare version: this is a
+      # locally patched fork, so it can be rebuilt many times at the same 1.4.1, and a release
+      # tag can only be created once per name. gh-release handles the collision by tagging a new
+      # name each run.
+      #
+      # Two guards, because a failed release must not silently look like a failed build:
+      #   * draft: true below means nothing is published unless the release step itself succeeds;
+      #   * never_draft is unset, so the draft stays a draft for you to review and publish.
+      - name: 1.4.1 debug with the check removed
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          prerelease: false
+          files: packages/*.deb
+          tag_name: local-${{ steps.pkg.outputs.version }}-run${{ github.run_number }}
+          name: ${{ steps.pkg.outputs.version }} (run ${{ github.run_number }}, iPhone gate removed)
+          body: |
+            MacStatusBar&Dock ${{ steps.pkg.outputs.version }} — locally patched by the "Space Bunny Free" AI agent.
+
+            **Difference from upstream:** the iPad-only device gate has been deleted outright —
+            `common/DeviceGate.h` and its four call sites (in `loader/Loader.c`,
+            `macsettings/sshtoggled/main.m` and `layout/DEBIAN/postinst`) — so the tweak loads on
+            an iPhone instead of disabling itself. That is the only source change.
+
+            **This is not an official release.** It is built from a fork and is not covered by
+            upstream's testing. Built on GitHub Actions, `macos-14`, debug build (unstripped, so
+            the per-function crash map is present).
+
+            ### Install
+
+            ```sh
+            sudo dpkg -i MacStatusBar&Dock_${{ steps.pkg.outputs.version }}_iphoneos-arm64.deb
+            ```
+
+            Requires a rootless jailbreak plus ElleKit/libhooker/Substrate, Choicy or iCleaner Pro,
+            and AltList. See the project's `control` file.
+
+            ### Before you install
+
+            This is an iPad tweak. Without a window engine (Aerial / Zetsu / MilkyWay4) the
+            windowing features are inert, and the Dock, Finder and menu bar are laid out for a
+            large display. It may well be unusable on an iPhone — the gate exists for reasons
+            beyond policy.
