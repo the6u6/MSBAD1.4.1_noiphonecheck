@@ -50,11 +50,27 @@ jobs:
 
       # Only the one SDK this project targets (iphone:clang:16.5), fetched sparsely so the
       # ~2 GB theos/sdks repo is not downloaded in full.
+      #
+      # The tree is wiped first: a leftover sdks/ from an interrupted or re-run job (or one
+      # left by Theos's own bootstrap) makes `git clone` refuse with "destination path already
+      # exists and is not an empty directory", and a half-written .git there sends git into
+      # errors that look nothing like the real cause. `git clone` on an existing directory is
+      # not idempotent, so a retry would otherwise fail for a different reason than the
+      # attempt before it.
       - name: Fetch the iPhoneOS 16.5 SDK
         run: |
-          git clone --filter=blob:none --sparse https://github.com/theos/sdks "$THEOS/sdks"
-          git -C "$THEOS/sdks" sparse-checkout set iPhoneOS16.5.sdk
-          ls -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+          SDK_DIR="$THEOS/sdks"
+          if [ -n "$(ls -A "$SDK_DIR" 2>/dev/null)" ]; then
+            echo "::warning::$SDK_DIR is not empty - clearing it before cloning"
+            du -sh "$SDK_DIR" 2>/dev/null || true
+            rm -rf "$SDK_DIR"
+          else
+            echo "$SDK_DIR is empty or absent"
+          fi
+          git clone --filter=blob:none --sparse https://github.com/theos/sdks "$SDK_DIR"
+          git -C "$SDK_DIR" sparse-checkout set iPhoneOS16.5.sdk
+          ls -d "$SDK_DIR/iPhoneOS16.5.sdk"
+          du -sh "$SDK_DIR"
 
       - name: Report the toolchain
         run: |
