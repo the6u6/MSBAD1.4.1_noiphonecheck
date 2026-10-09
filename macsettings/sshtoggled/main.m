@@ -40,7 +40,6 @@
 #include <CoreFoundation/CoreFoundation.h>
 #include <sys/kauth.h>
 #include <pthread.h>
-#include "../../common/DeviceGate.h"
 #include "../../common/EngineBuilds.h"
 #include "../../common/VersionGate.h"
 #include "../../common/DpkgState.h"
@@ -1256,13 +1255,7 @@ static void DryRunEngines(const char *statusPath, BOOL oldRule) {
 #endif
 int main(int argc, char **argv) {
     @autoreleasepool {
-        // Not an iPad (common/DeviceGate.h): nothing but giving back. The daemon stays idle (launchd would restart it if it quit).
         if (argc > 1 && strcmp(argv[1], "--os-major") == 0) { printf("%ld\n", (long)[NSProcessInfo processInfo].operatingSystemVersion.majorVersion); return 0; }   // (postinst: the iPadOS 17+ Settings entries)
-        if (argc > 1 && strcmp(argv[1], "--is-ipad") == 0) return MSBDIsIPad() ? 0 : 2;   // (postinst: 2, not 1, so a failed start never reads as "not an iPad")
-        if (!MSBDIsIPad()) {
-            if (argc < 2) dispatch_main();
-            if (strcmp(argv[1], "--uninstall") != 0 && strcmp(argv[1], "--restore-engines") != 0 && strcmp(argv[1], "--restore-msb-off") != 0) return 0;
-        }
         if (argc > 1 && strcmp(argv[1], "--restore-engines") == 0) { GiveBackAll(@"package removed"); return 0; }
         if (argc > 1 && strcmp(argv[1], "--apply-engines") == 0) { ApplyEngines(@"manual"); return 0; }
         if (argc > 1 && strcmp(argv[1], "--check-msb-off") == 0) { CheckMacStatusBarOff(@"manual"); return 0; }
