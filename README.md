@@ -5,6 +5,7 @@
 * I don't really recommend using this unless you're a masochist (like me). Wait for the original developer to implement iPhone support properly.
 * I do not plan on updating this shitty fork. Like ever.
 * Notchless devices (iPhone 6S to SE 3rd gen, iPod Touch 7) will also require a separate tweak that can enable the modern dock (Lynx for example).
+* In order to use the macOS-styled status bar you first need to use a separate tweak to enable the iPad status bar (Lynx for example).
 * I don't know how to exit full-screen apps when the "Mac Switcher" option is turned on. I suggest you disable that.
 
 ## What works:
@@ -14,16 +15,18 @@
 * The built-in Finder recreation.
 * The Launchpad-looking button.
 * macOS-like desktop icons.
+* The macOS-looking status bar itself.
 * (not everything has been tested yet).
 
 ## What doesn't work:
 
-* The macOS-looking status bar itself.
+* (seems like everything's working)
 
 ## Screenshits (2nd gen SE on 15.3.1 with MilkyWay4):
 
   ![The Finder window](./images/IMG_2888.PNG)
   ![The Mac Switcher](./images/IMG_2889.PNG)
+  ![The Settings app in a windows with the custom status bar](./images/IMG_2911.PNG)
 
 ### Bellow is the original description of this tweak.
 
