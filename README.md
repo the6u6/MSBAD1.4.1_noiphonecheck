@@ -15,7 +15,7 @@
 * The built-in Finder recreation.
 * The Launchpad-looking button.
 * macOS-like desktop icons.
-* The macOS-looking status bar itself.
+* The macOS-looking status bar.
 * (not everything has been tested yet).
 
 ## What doesn't work:
